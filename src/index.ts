@@ -19,6 +19,8 @@ app.get('/', (c) => {
   return c.json({ message: 'jimiroi-api is online.', version: '1.0.0' })
 })
 
+import { env } from 'hono/adapter'
+
 app.post('/track', async (c) => {
   try {
     const body = await c.req.json()
@@ -28,14 +30,20 @@ app.post('/track', async (c) => {
       return c.json({ error: 'Event name is required' }, 400)
     }
 
+    // Safely get environment variables across all Vercel runtimes (Edge or Node)
+    const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = env<{ UPSTASH_REDIS_REST_URL?: string, UPSTASH_REDIS_REST_TOKEN?: string }>(c)
+
     // If we don't have Redis configured (e.g., running locally), just mock it
-    if (!process.env.UPSTASH_REDIS_REST_URL) {
+    if (!UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN) {
       console.log(`[Local Analytics Mock] Project: ${project} | Event: ${event} | Path: ${path || 'N/A'}`)
       return c.json({ success: true, mock: true })
     }
 
-    // Connect to Vercel KV / Upstash Redis
-    const redis = Redis.fromEnv()
+    // Connect to Upstash Redis explicitly
+    const redis = new Redis({
+      url: UPSTASH_REDIS_REST_URL,
+      token: UPSTASH_REDIS_REST_TOKEN,
+    })
     
     const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     const dailyKey = `analytics:${project}:${event}:${date}`
