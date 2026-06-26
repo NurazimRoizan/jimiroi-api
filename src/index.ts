@@ -3,10 +3,12 @@ import { cors } from 'hono/cors'
 
 const app = new Hono()
 
+import { Redis } from '@upstash/redis'
+
 // Enable CORS so the Next.js portfolio can fetch this API
 app.use('/*', cors({
   origin: ['http://localhost:3000', 'https://jimiroi.com', 'https://portfolio.jimiroi.com'],
-  allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests'],
+  allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests', 'Content-Type'],
   allowMethods: ['POST', 'GET', 'OPTIONS'],
   exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
   maxAge: 600,
@@ -15,6 +17,41 @@ app.use('/*', cors({
 
 app.get('/', (c) => {
   return c.json({ message: 'jimiroi-api is online.', version: '1.0.0' })
+})
+
+app.post('/track', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { event, path, project = 'portfolio' } = body
+
+    if (!event) {
+      return c.json({ error: 'Event name is required' }, 400)
+    }
+
+    // If we don't have Redis configured (e.g., running locally), just mock it
+    if (!process.env.UPSTASH_REDIS_REST_URL) {
+      console.log(`[Local Analytics Mock] Project: ${project} | Event: ${event} | Path: ${path || 'N/A'}`)
+      return c.json({ success: true, mock: true })
+    }
+
+    // Connect to Vercel KV / Upstash Redis
+    const redis = Redis.fromEnv()
+    
+    const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    const dailyKey = `analytics:${project}:${event}:${date}`
+    const totalKey = `analytics:${project}:${event}:total`
+
+    // Increment both the daily counter and the all-time total counter
+    await Promise.all([
+      redis.incr(dailyKey),
+      redis.incr(totalKey)
+    ])
+
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('Tracking error:', error)
+    return c.json({ error: 'Failed to track event' }, 500)
+  }
 })
 
 app.get('/stats/github', async (c) => {
