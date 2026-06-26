@@ -30,16 +30,9 @@ app.post('/track', async (c) => {
       return c.json({ error: 'Event name is required' }, 400)
     }
 
-    // Safely get environment variables across all Vercel runtimes (Edge or Node)
-    const envVars = env<{ 
-      UPSTASH_REDIS_REST_URL?: string, 
-      UPSTASH_REDIS_REST_TOKEN?: string,
-      KV_REST_API_URL?: string,
-      KV_REST_API_TOKEN?: string
-    }>(c)
-
-    const redisUrl = envVars.UPSTASH_REDIS_REST_URL || envVars.KV_REST_API_URL
-    const redisToken = envVars.UPSTASH_REDIS_REST_TOKEN || envVars.KV_REST_API_TOKEN
+    // Since this runs on Vercel Node Serverless, we use process.env directly
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
 
     // If we don't have Redis configured (e.g., running locally), just mock it
     if (!redisUrl || !redisToken) {
