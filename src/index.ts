@@ -31,18 +31,26 @@ app.post('/track', async (c) => {
     }
 
     // Safely get environment variables across all Vercel runtimes (Edge or Node)
-    const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = env<{ UPSTASH_REDIS_REST_URL?: string, UPSTASH_REDIS_REST_TOKEN?: string }>(c)
+    const envVars = env<{ 
+      UPSTASH_REDIS_REST_URL?: string, 
+      UPSTASH_REDIS_REST_TOKEN?: string,
+      KV_REST_API_URL?: string,
+      KV_REST_API_TOKEN?: string
+    }>(c)
+
+    const redisUrl = envVars.UPSTASH_REDIS_REST_URL || envVars.KV_REST_API_URL
+    const redisToken = envVars.UPSTASH_REDIS_REST_TOKEN || envVars.KV_REST_API_TOKEN
 
     // If we don't have Redis configured (e.g., running locally), just mock it
-    if (!UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN) {
+    if (!redisUrl || !redisToken) {
       console.log(`[Local Analytics Mock] Project: ${project} | Event: ${event} | Path: ${path || 'N/A'}`)
       return c.json({ success: true, mock: true })
     }
 
     // Connect to Upstash Redis explicitly
     const redis = new Redis({
-      url: UPSTASH_REDIS_REST_URL,
-      token: UPSTASH_REDIS_REST_TOKEN,
+      url: redisUrl,
+      token: redisToken,
     })
     
     const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
