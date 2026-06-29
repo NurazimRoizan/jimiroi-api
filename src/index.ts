@@ -21,6 +21,21 @@ app.get('/', (c) => {
 
 import { env } from 'hono/adapter'
 
+const sendDiscordNotification = async (message: string) => {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL
+  if (!webhookUrl) return
+
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    })
+  } catch (e) {
+    console.error('Failed to send discord notification:', e)
+  }
+}
+
 app.post('/track', async (c) => {
   try {
     const body = await c.req.json()
@@ -37,6 +52,11 @@ app.post('/track', async (c) => {
     // If we don't have Redis configured (e.g., running locally), just mock it
     if (!redisUrl || !redisToken) {
       console.log(`[Local Analytics Mock] Project: ${project} | Event: ${event} | Path: ${path || 'N/A'}`)
+      
+      // Still test discord locally if configured
+      if (event === 'resume_download') {
+        await sendDiscordNotification(`[LOCAL] 🚨 **NEW RESUME DOWNLOAD** 🚨\nSomeone downloaded your CV from ${project}!`)
+      }
       return c.json({ success: true, mock: true })
     }
 
@@ -56,9 +76,18 @@ app.post('/track', async (c) => {
       redis.incr(totalKey)
     ])
 
+    // Feature #5: High-value event discord notifications
+    if (event === 'resume_download') {
+      await sendDiscordNotification(`🚨 **NEW RESUME DOWNLOAD** 🚨\nSomeone just downloaded your CV from ${project}!`)
+    }
+
     return c.json({ success: true })
   } catch (error: any) {
     console.error('Tracking error:', error)
+    
+    // Feature #5: System error monitoring
+    await sendDiscordNotification(`⚠️ **jimiroi-api ERROR** ⚠️\nTracking endpoint failed: \`${error.message}\``)
+    
     return c.json({ error: 'Failed to track event' }, 500)
   }
 })
