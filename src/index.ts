@@ -39,7 +39,12 @@ const sendDiscordNotification = async (message: string) => {
 app.post('/track', async (c) => {
   try {
     const body = await c.req.json()
-    const { event, path, project = 'portfolio' } = body
+    const { event, path, project = 'portfolio', message } = body
+
+    // Geo-Stalker headers provided natively by Vercel
+    const country = c.req.header('x-vercel-ip-country') || 'Unknown Country'
+    const city = c.req.header('x-vercel-ip-city') || 'Unknown City'
+    const userAgent = c.req.header('user-agent') || 'Unknown Device'
 
     if (!event) {
       return c.json({ error: 'Event name is required' }, 400)
@@ -56,6 +61,10 @@ app.post('/track', async (c) => {
       // Still test discord locally if configured
       if (event === 'resume_download') {
         await sendDiscordNotification(`[LOCAL] 🚨 **NEW RESUME DOWNLOAD** 🚨\nSomeone downloaded your CV from ${project}!`)
+      } else if (event === 'page_view') {
+        await sendDiscordNotification(`[LOCAL] 👀 **VIBE CHECK** 👀\nSomeone from ${city}, ${country} is viewing your portfolio!\nDevice: \`${userAgent}\``)
+      } else if (event === 'ai_chat') {
+        await sendDiscordNotification(`[LOCAL] 🤖 **AI WIRETAP** 🤖\nA user just asked your AI:\n> "${message || 'Unknown question'}"`)
       }
       return c.json({ success: true, mock: true })
     }
@@ -76,9 +85,13 @@ app.post('/track', async (c) => {
       redis.incr(totalKey)
     ])
 
-    // Feature #5: High-value event discord notifications
+    // Feature #5, #6, #2: Chaotic Discord Notifications
     if (event === 'resume_download') {
-      await sendDiscordNotification(`🚨 **NEW RESUME DOWNLOAD** 🚨\nSomeone just downloaded your CV from ${project}!`)
+      await sendDiscordNotification(`🚨 **NEW RESUME DOWNLOAD** 🚨\nSomeone from ${city}, ${country} just downloaded your CV from ${project}!`)
+    } else if (event === 'page_view') {
+      await sendDiscordNotification(`👀 **VIBE CHECK** 👀\nSomeone from ${city}, ${country} is viewing your portfolio!\nDevice: \`${userAgent}\``)
+    } else if (event === 'ai_chat') {
+      await sendDiscordNotification(`🤖 **AI WIRETAP** 🤖\nA user from ${city}, ${country} just asked your AI:\n> "${message || 'Unknown question'}"`)
     }
 
     return c.json({ success: true })
