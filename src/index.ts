@@ -65,6 +65,10 @@ app.post('/track', async (c) => {
         await sendDiscordNotification(`[LOCAL] 👀 **VIBE CHECK** 👀\nSomeone from ${city}, ${country} is viewing your portfolio!\nDevice: \`${userAgent}\``)
       } else if (event === 'ai_chat') {
         await sendDiscordNotification(`[LOCAL] 🤖 **AI WIRETAP** 🤖\nA user just asked your AI:\n> "${message || 'Unknown question'}"`)
+      } else if (event === 'partner_linked') {
+        await sendDiscordNotification(`[LOCAL] 💞 **NEW PARTNER LINKED** 💞\nSomeone from ${city}, ${country} just linked up in PiYak!`)
+      } else if (event === 'user_registered') {
+        await sendDiscordNotification(`[LOCAL] 🥳 **NEW PiYak USER** 🥳\nA brand new user just registered in PiYak!`)
       }
       return c.json({ success: true, mock: true })
     }
@@ -92,6 +96,10 @@ app.post('/track', async (c) => {
       await sendDiscordNotification(`👀 **VIBE CHECK** 👀\nSomeone from ${city}, ${country} is viewing your portfolio!\nDevice: \`${userAgent}\``)
     } else if (event === 'ai_chat') {
       await sendDiscordNotification(`🤖 **AI WIRETAP** 🤖\nA user from ${city}, ${country} just asked your AI:\n> "${message || 'Unknown question'}"`)
+    } else if (event === 'partner_linked') {
+      await sendDiscordNotification(`💞 **NEW PARTNER LINKED** 💞\nSomeone from ${city}, ${country} just linked up in PiYak!`)
+    } else if (event === 'user_registered') {
+      await sendDiscordNotification(`🥳 **NEW PiYak USER** 🥳\nA brand new user just registered in PiYak!`)
     }
 
     return c.json({ success: true })
