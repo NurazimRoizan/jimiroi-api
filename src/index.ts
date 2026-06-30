@@ -144,9 +144,9 @@ app.get('/cron/honest-clock', async (c) => {
     const currentDay = mytTime.getDate();
 
     const [historyRes, factRes, jokeRes, quoteRes] = await Promise.all([
-        fetchNinja(`historicalevents?text=malaysia`), // Or omit text for random world event
-        fetchNinja('facts?limit=1'),
-        fetchNinja('jokes?limit=1'),
+        fetchNinja('dayinhistory'),
+        fetchNinja('factoftheday'),
+        fetchNinja('jokeoftheday'),
         fetchNinja('quotes?category=humor&limit=1')
     ]);
 
@@ -157,16 +157,20 @@ app.get('/cron/honest-clock', async (c) => {
     }
 
     let extraStr = "";
-    if (factRes && factRes.length > 0) {
-        extraStr += `\n**🧠 Random Fact:**\n${factRes[0].fact}\n`;
+    if (factRes) {
+        const f = Array.isArray(factRes) ? factRes[0] : factRes;
+        if (f && f.fact) extraStr += `\n**🧠 Fact of the Day:**\n${f.fact}\n`;
     }
-    if (jokeRes && jokeRes.length > 0) {
-        extraStr += `\n**🤡 Joke of the Day:**\n${jokeRes[0].joke}\n`;
+    if (jokeRes) {
+        const j = Array.isArray(jokeRes) ? jokeRes[0] : jokeRes;
+        const jokeText = j?.joke || j?.text;
+        if (jokeText) extraStr += `\n**🤡 Joke of the Day:**\n${jokeText}\n`;
     }
-    if (historyRes && historyRes.length > 0) {
-        // Just grab the first historical event
-        const h = historyRes[0];
-        extraStr += `\n**📜 On this day in history (${h.year}):**\n${h.event}\n`;
+    if (historyRes) {
+        const h = Array.isArray(historyRes) ? historyRes[0] : historyRes;
+        const eventText = h?.event || h?.text;
+        const yearStr = h?.year || '';
+        if (eventText) extraStr += `\n**📜 On this day in history${yearStr ? ` (${yearStr})` : ''}:**\n${eventText}\n`;
     }
 
     const message = `
