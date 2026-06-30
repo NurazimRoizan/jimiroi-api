@@ -50,9 +50,14 @@ app.get('/cron/honest-clock', async (c) => {
     
     // Dates
     const myBirthday = new Date('2002-07-31');
-    const lifespanDays = 80 * 365.25;
+    const lifespanDays = 60 * 365.25;
     const daysLived = Math.floor((today.getTime() - myBirthday.getTime()) / (1000 * 60 * 60 * 24));
     const daysLeft = Math.floor(lifespanDays - daysLived);
+    
+    let lifeExpectancyText = `You have exactly **${daysLeft.toLocaleString()}** days left until you hit 60.`;
+    if (daysLeft <= 0) {
+        lifeExpectancyText = `You are statistically expired. You are past 60. Stop counting days, your body is already falling apart. Just try to survive.`;
+    }
 
     // Calculate days until next occurrence of an annual event
     const getDaysUntil = (month: number, day: number) => {
@@ -69,10 +74,19 @@ app.get('/cron/honest-clock', async (c) => {
         return Math.max(0, Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
     }
 
-    const daysToGfBday = getDaysUntil(5, 21);
-    const daysToMyBday = getDaysUntil(7, 31);
-    const daysToAnniversary = getDaysUntil(6, 15);
-    const daysToWedding = getDaysUntilSpecific('2027-03-27');
+    const milestones = [
+        { name: "GF's Birthday", days: getDaysUntil(5, 21), icon: "🎂" },
+        { name: "Your Birthday", days: getDaysUntil(7, 31), icon: "🎉" },
+        { name: "Anniversary", days: getDaysUntil(6, 15), icon: "💞" },
+        { name: "Wedding Day", days: getDaysUntilSpecific('2027-03-27'), icon: "💍" }
+    ];
+    milestones.sort((a, b) => a.days - b.days);
+    const nextMilestone = milestones[0];
+
+    let easterEgg = "";
+    if (nextMilestone.days === 0) {
+        easterEgg = `\n🚨 **WAKE UP! IT IS TODAY!** 🚨\nDrop everything. It is ${nextMilestone.name}. Do not mess this up.\n`;
+    }
 
     // Fetch Malaysia Holidays (Melaka & Putrajaya)
     let nextHolidayStr = "Data unavailable";
@@ -97,16 +111,14 @@ app.get('/cron/honest-clock', async (c) => {
         }
 
         const mergedHolidays = Array.from(allHolidays.values());
-        // Sort by date ascending
         mergedHolidays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        // Find the closest future holiday
         const futureHolidays = mergedHolidays.filter((h: any) => new Date(h.date).getTime() >= today.getTime());
 
         if (futureHolidays.length > 0) {
             const nextHol = futureHolidays[0];
             const daysToHol = Math.ceil((new Date(nextHol.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             const stateLabels = nextHol.states.length === 2 ? "MLK & PJY" : nextHol.states[0];
-            nextHolidayStr = `**${nextHol.name}** (${stateLabels})\n${daysToHol} days away (${nextHol.date})`;
+            nextHolidayStr = `**${nextHol.name}** (${stateLabels}) is in \`${daysToHol}\` days (${nextHol.date})`;
         } else {
             nextHolidayStr = "No more holidays this year!";
         }
@@ -114,16 +126,31 @@ app.get('/cron/honest-clock', async (c) => {
         console.error("Holiday API failed", e);
     }
 
+    // Randomized Brutal Quote of the Day
+    const brutalQuotes = [
+        "No one is coming to save you.",
+        "Your procrastination is literally killing your future.",
+        "Stop scrolling. Start building.",
+        "Another day closer to the void. Make it count.",
+        "Average effort yields average existence.",
+        "You are the bottleneck in your own life.",
+        "Time does not care about your excuses.",
+        "Comfort is the enemy of progress.",
+        "You have nothing to lose except the time you are wasting right now."
+    ];
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+    const randomQuote = brutalQuotes[dayOfYear % brutalQuotes.length];
+
     const message = `
 💀 **THE HONEST CLOCK** 💀
-Wake up. You have exactly **${daysLeft.toLocaleString()}** days left to live (assuming 80 years).
-You have lived **${daysLived.toLocaleString()}** days so far. What are you doing with today?
+${lifeExpectancyText}
+You have lived **${daysLived.toLocaleString()}** days so far. 
 
-📅 **MILESTONES AHEAD:**
-- 🎂 GF's Birthday: \`${daysToGfBday}\` days
-- 🎉 Your Birthday: \`${daysToMyBday}\` days
-- 💞 Anniversary: \`${daysToAnniversary}\` days
-- 💍 Wedding Day: \`${daysToWedding}\` days
+> *"${randomQuote}"*
+
+${easterEgg}
+📅 **CLOSEST MILESTONE:**
+${nextMilestone.icon} **${nextMilestone.name}** is in \`${nextMilestone.days}\` days.
 
 🌴 **NEXT PUBLIC HOLIDAY:**
 ${nextHolidayStr}
