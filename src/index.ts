@@ -74,22 +74,41 @@ app.get('/cron/honest-clock', async (c) => {
     const daysToAnniversary = getDaysUntil(6, 15);
     const daysToWedding = getDaysUntilSpecific('2027-03-27');
 
-    // Fetch Malaysia Holidays (Melaka)
+    // Fetch Malaysia Holidays (Melaka & Putrajaya)
     let nextHolidayStr = "Data unavailable";
     try {
-        const res = await fetch(`https://malaysia-holiday.dydxsoft.my/api/v1/holidays?year=${currentYear}&state=MLK`);
-        if (res.ok) {
-            const json = await res.json();
-            const holidays = json.data || [];
-            // Find the closest future holiday
-            const futureHolidays = holidays.filter((h: any) => new Date(h.date).getTime() >= today.getTime());
-            if (futureHolidays.length > 0) {
-                const nextHol = futureHolidays[0];
-                const daysToHol = Math.ceil((new Date(nextHol.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                nextHolidayStr = `**${nextHol.name}**\n${daysToHol} days away (${nextHol.date})`;
-            } else {
-                nextHolidayStr = "No more holidays this year!";
+        const states = ['MLK', 'PJY'];
+        const allHolidays = new Map();
+
+        for (const state of states) {
+            const res = await fetch(`https://malaysia-holiday.dydxsoft.my/api/v1/holidays?year=${currentYear}&state=${state}`);
+            if (res.ok) {
+                const json = await res.json();
+                const holidays = json.data || [];
+                holidays.forEach((h: any) => {
+                    const key = `${h.date}-${h.name}`;
+                    if (!allHolidays.has(key)) {
+                        allHolidays.set(key, { ...h, states: [state] });
+                    } else {
+                        allHolidays.get(key).states.push(state);
+                    }
+                });
             }
+        }
+
+        const mergedHolidays = Array.from(allHolidays.values());
+        // Sort by date ascending
+        mergedHolidays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        // Find the closest future holiday
+        const futureHolidays = mergedHolidays.filter((h: any) => new Date(h.date).getTime() >= today.getTime());
+
+        if (futureHolidays.length > 0) {
+            const nextHol = futureHolidays[0];
+            const daysToHol = Math.ceil((new Date(nextHol.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            const stateLabels = nextHol.states.length === 2 ? "MLK & PJY" : nextHol.states[0];
+            nextHolidayStr = `**${nextHol.name}** (${stateLabels})\n${daysToHol} days away (${nextHol.date})`;
+        } else {
+            nextHolidayStr = "No more holidays this year!";
         }
     } catch (e) {
         console.error("Holiday API failed", e);
@@ -106,7 +125,7 @@ You have lived **${daysLived.toLocaleString()}** days so far. What are you doing
 - 💞 Anniversary: \`${daysToAnniversary}\` days
 - 💍 Wedding Day: \`${daysToWedding}\` days
 
-🌴 **NEXT PUBLIC HOLIDAY (Melaka):**
+🌴 **NEXT PUBLIC HOLIDAY:**
 ${nextHolidayStr}
 `;
 
