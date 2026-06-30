@@ -142,18 +142,22 @@ app.get('/cron/honest-clock', async (c) => {
     const randomQuote = brutalQuotes[dayOfYear % brutalQuotes.length];
 
     const message = `
-💀 **THE HONEST CLOCK** 💀
-${lifeExpectancyText}
-You have lived **${daysLived.toLocaleString()}** days so far. 
+# ⬛ THE MORTALITY REPORT ⬛
 
 > *"${randomQuote}"*
 
+**STATUS:** ${lifeExpectancyText}
+**LOG:** You have survived **${daysLived.toLocaleString()}** days. What are you doing with today?
 ${easterEgg}
-📅 **CLOSEST MILESTONE:**
-${nextMilestone.icon} **${nextMilestone.name}** is in \`${nextMilestone.days}\` days.
+---
+### 🎯 NEXT INEVITABLE MILESTONE
+${nextMilestone.icon} **${nextMilestone.name}**
+⏳ \`${nextMilestone.days}\` days remaining.
 
-🌴 **NEXT PUBLIC HOLIDAY:**
+### 🌴 NEXT STATE ESCAPE (MLK & PJY)
 ${nextHolidayStr}
+---
+*End of report.*
 `;
 
     await sendDiscordNotification(message, process.env.DISCORD_HONEST_CLOCK_WEBHOOK_URL);
