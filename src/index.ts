@@ -36,6 +36,89 @@ const sendDiscordNotification = async (message: string) => {
   }
 }
 
+app.get('/cron/honest-clock', async (c) => {
+  try {
+    // Vercel Cron adds a Bearer token matching CRON_SECRET, but we'll accept requests to this endpoint for testing
+    // To strictly lock it down, uncomment:
+    // const authHeader = c.req.header('Authorization');
+    // if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) return c.json({ error: 'Unauthorized' }, 401);
+
+    const today = new Date();
+    // Force MYT timezone (UTC+8) for local date calculation
+    const mytTime = new Date(today.getTime() + (8 * 60 * 60 * 1000));
+    const currentYear = mytTime.getUTCFullYear();
+    
+    // Dates
+    const myBirthday = new Date('2002-07-31');
+    const lifespanDays = 80 * 365.25;
+    const daysLived = Math.floor((today.getTime() - myBirthday.getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.floor(lifespanDays - daysLived);
+
+    // Calculate days until next occurrence of an annual event
+    const getDaysUntil = (month: number, day: number) => {
+        let nextDate = new Date(Date.UTC(currentYear, month - 1, day));
+        if (nextDate.getTime() < today.getTime()) {
+            nextDate = new Date(Date.UTC(currentYear + 1, month - 1, day));
+        }
+        return Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Calculate days until a specific future date (e.g., Wedding)
+    const getDaysUntilSpecific = (targetDateString: string) => {
+        const nextDate = new Date(targetDateString);
+        return Math.max(0, Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+
+    const daysToGfBday = getDaysUntil(5, 21);
+    const daysToMyBday = getDaysUntil(7, 31);
+    const daysToAnniversary = getDaysUntil(6, 15);
+    const daysToWedding = getDaysUntilSpecific('2027-03-27');
+
+    // Fetch Malaysia Holidays (Melaka)
+    let nextHolidayStr = "Data unavailable";
+    try {
+        const res = await fetch(`https://malaysia-holiday.dydxsoft.my/api/v1/holidays?year=${currentYear}&state=MLK`);
+        if (res.ok) {
+            const json = await res.json();
+            const holidays = json.data || [];
+            // Find the closest future holiday
+            const futureHolidays = holidays.filter((h: any) => new Date(h.date).getTime() >= today.getTime());
+            if (futureHolidays.length > 0) {
+                const nextHol = futureHolidays[0];
+                const daysToHol = Math.ceil((new Date(nextHol.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                nextHolidayStr = `**${nextHol.name}**\n${daysToHol} days away (${nextHol.date})`;
+            } else {
+                nextHolidayStr = "No more holidays this year!";
+            }
+        }
+    } catch (e) {
+        console.error("Holiday API failed", e);
+    }
+
+    const message = `
+💀 **THE HONEST CLOCK** 💀
+Wake up. You have exactly **${daysLeft.toLocaleString()}** days left to live (assuming 80 years).
+You have lived **${daysLived.toLocaleString()}** days so far. What are you doing with today?
+
+📅 **MILESTONES AHEAD:**
+- 🎂 GF's Birthday: \`${daysToGfBday}\` days
+- 🎉 Your Birthday: \`${daysToMyBday}\` days
+- 💞 Anniversary: \`${daysToAnniversary}\` days
+- 💍 Wedding Day: \`${daysToWedding}\` days
+
+🌴 **NEXT PUBLIC HOLIDAY (Melaka):**
+${nextHolidayStr}
+`;
+
+    await sendDiscordNotification(message);
+
+    return c.json({ success: true, message: "Honest Clock triggered" });
+  } catch (error: any) {
+    console.error(error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 app.post('/track', async (c) => {
   try {
     const body = await c.req.json()
