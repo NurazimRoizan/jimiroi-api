@@ -126,25 +126,53 @@ app.get('/cron/honest-clock', async (c) => {
         console.error("Holiday API failed", e);
     }
 
-    // Randomized Brutal Quote of the Day
-    const brutalQuotes = [
-        "No one is coming to save you.",
-        "Your procrastination is literally killing your future.",
-        "Stop scrolling. Start building.",
-        "Another day closer to the void. Make it count.",
-        "Average effort yields average existence.",
-        "You are the bottleneck in your own life.",
-        "Time does not care about your excuses.",
-        "Comfort is the enemy of progress.",
-        "You have nothing to lose except the time you are wasting right now."
-    ];
-    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-    const randomQuote = brutalQuotes[dayOfYear % brutalQuotes.length];
+    // API-Ninjas Integration
+    const fetchNinja = async (endpoint: string) => {
+        if (!process.env.API_NINJAS_KEY) return null;
+        try {
+            const res = await fetch(`https://api.api-ninjas.com/v1/${endpoint}`, {
+                headers: { 'X-Api-Key': process.env.API_NINJAS_KEY }
+            });
+            if (res.ok) return await res.json();
+        } catch (e) {
+            console.error(`Ninja API error for ${endpoint}`, e);
+        }
+        return null;
+    };
+
+    const currentMonth = mytTime.getMonth() + 1;
+    const currentDay = mytTime.getDate();
+
+    const [historyRes, factRes, jokeRes, quoteRes] = await Promise.all([
+        fetchNinja(`historicalevents?text=malaysia`), // Or omit text for random world event
+        fetchNinja('facts?limit=1'),
+        fetchNinja('jokes?limit=1'),
+        fetchNinja('quotes?category=humor&limit=1')
+    ]);
+
+    // Fallback brutal quote if API key is missing or request fails
+    let quoteStr = `> *"Another day closer to the void. Make it count."*`;
+    if (quoteRes && quoteRes.length > 0) {
+        quoteStr = `> *"${quoteRes[0].quote}"* \n> — **${quoteRes[0].author}**`;
+    }
+
+    let extraStr = "";
+    if (factRes && factRes.length > 0) {
+        extraStr += `\n**🧠 Random Fact:**\n${factRes[0].fact}\n`;
+    }
+    if (jokeRes && jokeRes.length > 0) {
+        extraStr += `\n**🤡 Joke of the Day:**\n${jokeRes[0].joke}\n`;
+    }
+    if (historyRes && historyRes.length > 0) {
+        // Just grab the first historical event
+        const h = historyRes[0];
+        extraStr += `\n**📜 On this day in history (${h.year}):**\n${h.event}\n`;
+    }
 
     const message = `
 # ⬛ THE MORTALITY REPORT ⬛
 
-> *"${randomQuote}"*
+${quoteStr}
 
 **STATUS:** ${lifeExpectancyText}
 **LOG:** You have survived **${daysLived.toLocaleString()}** days. What are you doing with today?
@@ -156,6 +184,9 @@ ${nextMilestone.icon} **${nextMilestone.name}**
 
 ### 🌴 NEXT STATE ESCAPE (MLK & PJY)
 ${nextHolidayStr}
+---
+### 🎲 DAILY TRIVIA
+${extraStr || "*(API-Ninjas key not configured)*"}
 ---
 *End of report.*
 `;
