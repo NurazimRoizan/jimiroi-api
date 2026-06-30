@@ -21,8 +21,8 @@ app.get('/', (c) => {
 
 import { env } from 'hono/adapter'
 
-const sendDiscordNotification = async (message: string) => {
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL
+const sendDiscordNotification = async (message: string, customWebhookUrl?: string) => {
+  const webhookUrl = customWebhookUrl || process.env.DISCORD_WEBHOOK_URL
   if (!webhookUrl) return
 
   try {
@@ -110,7 +110,7 @@ You have lived **${daysLived.toLocaleString()}** days so far. What are you doing
 ${nextHolidayStr}
 `;
 
-    await sendDiscordNotification(message);
+    await sendDiscordNotification(message, process.env.DISCORD_HONEST_CLOCK_WEBHOOK_URL);
 
     return c.json({ success: true, message: "Honest Clock triggered" });
   } catch (error: any) {
