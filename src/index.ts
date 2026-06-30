@@ -159,12 +159,12 @@ app.get('/cron/honest-clock', async (c) => {
     let extraStr = "";
     if (factRes) {
         const f = Array.isArray(factRes) ? factRes[0] : factRes;
-        if (f && f.fact) extraStr += `\n**🧠 Fact of the Day:**\n${f.fact}\n`;
+        if (f && f.fact) extraStr += `\n**🧠 Useless Fact Nobody Asked For:**\n${f.fact}\n`;
     }
     if (jokeRes) {
         const j = Array.isArray(jokeRes) ? jokeRes[0] : jokeRes;
         const jokeText = j?.joke || j?.text;
-        if (jokeText) extraStr += `\n**🤡 Joke of the Day:**\n${jokeText}\n`;
+        if (jokeText) extraStr += `\n**🤡 Mandatory Coping Mechanism:**\n${jokeText}\n`;
     }
     if (historyRes) {
         const h = Array.isArray(historyRes) ? historyRes[0] : historyRes;
@@ -189,7 +189,7 @@ ${nextMilestone.icon} **${nextMilestone.name}**
 ### 🌴 NEXT STATE ESCAPE (MLK & PJY)
 ${nextHolidayStr}
 ---
-### 🎲 DAILY TRIVIA
+### 🎲 DISTRACTIONS FROM THE VOID
 ${extraStr || "*(API-Ninjas key not configured)*"}
 ---
 *End of report.*
