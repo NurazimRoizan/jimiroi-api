@@ -18,10 +18,8 @@ This API acts as a universal webhook router and background worker, seamlessly co
 - **Database:** Upstash Redis
 - **Integrations:** Discord Webhooks, API-Ninjas, Clerk Webhooks
 
-## 🚢 Deployment
+## 🧠 Philosophy
 
-To build and deploy manually:
-```bash
-npm run build
-vc deploy --prod
-```
+Most developers build APIs for other people. This API is built entirely for *me*. It is a selfish, highly opinionated, brutally honest system designed to keep me accountable, track my digital footprint across the web, and aggregate the noise of multiple side projects into a single, cohesive Discord dashboard.
+
+Stop building SaaS for free users who complain. Build a nervous system for yourself.
