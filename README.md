@@ -18,24 +18,6 @@ This API acts as a universal webhook router and background worker, seamlessly co
 - **Database:** Upstash Redis
 - **Integrations:** Discord Webhooks, API-Ninjas, Clerk Webhooks
 
-## 💻 Development Setup
-
-### Prerequisites
-- [Vercel CLI](https://vercel.com/docs/cli) installed globally
-
-### Local Development
-```bash
-npm install
-vc dev
-# Runs on http://localhost:3000
-```
-
-### Environment Variables Required
-- `DISCORD_WEBHOOK_URL` (For general project logging)
-- `DISCORD_HONEST_CLOCK_WEBHOOK_URL` (For the Mortality Report routing)
-- `API_NINJAS_KEY` (For facts, history, and quotes)
-- `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN` (For portfolio view counters)
-
 ## 🚢 Deployment
 
 To build and deploy manually:
