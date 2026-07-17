@@ -478,4 +478,79 @@ app.get('/test-redis', async (c) => {
   }
 })
 
+import { verifyKey } from 'discord-interactions'
+
+app.post('/discord/interactions', async (c) => {
+  const signature = c.req.header('x-signature-ed25519')
+  const timestamp = c.req.header('x-signature-timestamp')
+  const rawBody = await c.req.text()
+  
+  const publicKey = process.env.DISCORD_PUBLIC_KEY
+  if (!publicKey || !signature || !timestamp) {
+    return c.json({ error: 'Missing headers or public key' }, 401)
+  }
+
+  const isValidRequest = verifyKey(rawBody, signature, timestamp, publicKey)
+  if (!isValidRequest) {
+    return c.json({ error: 'Bad request signature' }, 401)
+  }
+
+  const body = JSON.parse(rawBody)
+
+  // 1. Handle PING from Discord
+  if (body.type === 1) {
+    return c.json({ type: 1 }) // PONG
+  }
+
+  // 2. Handle /rsvps Slash Command
+  if (body.type === 2 && body.data.name === 'rsvps') {
+    try {
+      const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+      const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+      const redis = new Redis({ url: redisUrl as string, token: redisToken as string })
+      
+      const rsvpsHash = await redis.hgetall('ajemnuul:rsvps')
+      let rsvps: any[] = []
+      if (rsvpsHash) {
+         rsvps = Object.values(rsvpsHash).map((val: any) => typeof val === 'string' ? JSON.parse(val) : val)
+         // Sort oldest first for a clean list
+         rsvps.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      }
+
+      const coming = rsvps.filter(r => r.attendance === 'yes')
+      const decline = rsvps.filter(r => r.attendance === 'no')
+
+      let text = `📜 **AJEM & NUUL GUEST LIST** 📜\n\n`
+      text += `✅ **Coming (${coming.length}):**\n` + (coming.length > 0 ? coming.map(c => `- ${c.name}`).join('\n') : '*None yet*') + `\n\n`
+      if (decline.length > 0) {
+        text += `❌ **Not Coming (${decline.length}):**\n` + decline.map(c => `- ${c.name}`).join('\n')
+      }
+
+      // Discord message limit is 2000 chars
+      if (text.length > 1950) {
+        text = text.substring(0, 1900) + '\n... *(List truncated due to Discord length limits)*'
+      }
+
+      return c.json({
+        type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+        data: {
+          content: text,
+          flags: 64 // EPHEMERAL (Only you can see this message)
+        }
+      })
+    } catch (err) {
+      console.error(err)
+      return c.json({
+        type: 4,
+        data: {
+          content: '❌ Failed to fetch RSVPs from the database.',
+          flags: 64
+        }
+      })
+    }
+  }
+
+  return c.json({ error: 'Unknown command' }, 400)
+})
+
 export default app
