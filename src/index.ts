@@ -367,8 +367,8 @@ app.post('/rsvp', async (c) => {
     }
 
     // Save to Redis Hash (Hash name: ajemnuul:rsvps)
-    // Using the explicit 3-argument signature to ensure compatibility with all @upstash/redis versions
-    await redis.hset('ajemnuul:rsvps', id, JSON.stringify(entry))
+    // Reverting to the 2-argument signature for TypeScript compatibility
+    await redis.hset('ajemnuul:rsvps', { [id]: JSON.stringify(entry) })
     
     // Discord Notification
     const origin = new URL(c.req.url).origin
