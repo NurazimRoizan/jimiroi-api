@@ -490,7 +490,13 @@ app.post('/discord/interactions', async (c) => {
     return c.json({ error: 'Missing headers or public key' }, 401)
   }
 
-  const isValidRequest = verifyKey(rawBody, signature, timestamp, publicKey)
+  let isValidRequest = false
+  try {
+    isValidRequest = verifyKey(rawBody, signature, timestamp, publicKey)
+  } catch (e) {
+    return c.json({ error: 'Signature verification crashed. Check Public Key format.' }, 401)
+  }
+
   if (!isValidRequest) {
     return c.json({ error: 'Bad request signature' }, 401)
   }
