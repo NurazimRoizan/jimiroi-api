@@ -403,7 +403,7 @@ app.get('/rsvp', async (c) => {
        rsvps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
     
-    return c.json({ success: true, rsvps })
+    return c.json({ success: true, rsvps, rawHash: rsvpsHash })
   } catch (error: any) {
     console.error('Fetch RSVP error:', error)
     return c.json({ error: 'Failed to fetch RSVPs' }, 500)
