@@ -7,7 +7,7 @@ import { Redis } from '@upstash/redis'
 
 // Enable CORS so the Next.js portfolio can fetch this API
 app.use('/*', cors({
-  origin: ['http://localhost:3000', 'https://jimiroi.com', 'https://portfolio.jimiroi.com'],
+  origin: (origin) => origin,
   allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests', 'Content-Type'],
   allowMethods: ['POST', 'GET', 'OPTIONS'],
   exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
@@ -333,6 +333,109 @@ app.get('/stats/github', async (c) => {
     })
   } catch (error: any) {
     return c.json({ error: error.message }, 500)
+  }
+})
+
+// --- AJEM & NUUL RSVP / GUESTBOOK ENDPOINTS ---
+
+app.post('/rsvp', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { name, attendance, message } = body
+    if (!name || !attendance) {
+      return c.json({ error: 'Name and attendance are required' }, 400)
+    }
+
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+    
+    if (!redisUrl || !redisToken) {
+       return c.json({ error: 'Redis is not configured' }, 500)
+    }
+
+    const redis = new Redis({ url: redisUrl, token: redisToken })
+    
+    const id = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    const createdAt = new Date().toISOString()
+    
+    const entry = {
+      id,
+      name,
+      attendance,
+      message: message || '',
+      createdAt
+    }
+
+    // Save to Redis Hash (Hash name: ajemnuul:rsvps)
+    await redis.hset('ajemnuul:rsvps', { [id]: JSON.stringify(entry) })
+    
+    // Discord Notification
+    const origin = new URL(c.req.url).origin
+    const adminSecret = process.env.ADMIN_SECRET || 'NOT_SET'
+    const actualDeleteLink = `${origin}/rsvp/delete/${id}?secret=${adminSecret}`
+
+    const discordMsg = `🎉 **New RSVP Received!** 🎉\n**Name:** ${name}\n**Attendance:** ${attendance}\n**Wish:** ${message || '*No message*'}\n\n[🗑️ Click here to Delete this message](${actualDeleteLink})`
+    
+    await sendDiscordNotification(discordMsg)
+
+    return c.json({ success: true, entry })
+  } catch (error: any) {
+    console.error('RSVP error:', error)
+    return c.json({ error: 'Failed to submit RSVP' }, 500)
+  }
+})
+
+app.get('/rsvp', async (c) => {
+  try {
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+    if (!redisUrl || !redisToken) {
+       return c.json({ error: 'Redis is not configured' }, 500)
+    }
+    const redis = new Redis({ url: redisUrl, token: redisToken })
+    
+    const rsvpsHash = await redis.hgetall('ajemnuul:rsvps')
+    
+    let rsvps: any[] = []
+    if (rsvpsHash) {
+       rsvps = Object.values(rsvpsHash).map((val: any) => typeof val === 'string' ? JSON.parse(val) : val)
+       // Sort by date descending
+       rsvps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    }
+    
+    return c.json({ success: true, rsvps })
+  } catch (error: any) {
+    console.error('Fetch RSVP error:', error)
+    return c.json({ error: 'Failed to fetch RSVPs' }, 500)
+  }
+})
+
+app.get('/rsvp/delete/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const secret = c.req.query('secret')
+    
+    const adminSecret = process.env.ADMIN_SECRET
+    if (!adminSecret || secret !== adminSecret) {
+      return c.json({ error: 'Unauthorized. Invalid secret.' }, 401)
+    }
+
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+    const redis = new Redis({ url: redisUrl, token: redisToken })
+    
+    await redis.hdel('ajemnuul:rsvps', id)
+    
+    return c.html(`
+      <div style="font-family: sans-serif; padding: 2rem; text-align: center;">
+        <h1 style="color: #d4af37;">Success! 🗑️</h1>
+        <p>The message has been permanently deleted from the guestbook.</p>
+        <p style="font-size: 0.8rem; opacity: 0.7;">You can close this tab now.</p>
+      </div>
+    `)
+  } catch (error: any) {
+    console.error('Delete RSVP error:', error)
+    return c.json({ error: 'Failed to delete RSVP' }, 500)
   }
 })
 
