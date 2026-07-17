@@ -514,55 +514,115 @@ app.post('/discord/interactions', async (c) => {
     return c.json({ type: 1 }) // PONG
   }
 
-  // 2. Handle /rsvps Slash Command
-  if (body.type === 2 && body.data.name === 'rsvps') {
-    try {
-      const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
-      const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
-      const redis = new Redis({ url: redisUrl as string, token: redisToken as string })
-      
-      const rsvpsHash = await redis.hgetall('ajemnuul:rsvps')
-      let rsvps: any[] = []
-      if (rsvpsHash) {
-         rsvps = Object.values(rsvpsHash).map((val: any) => typeof val === 'string' ? JSON.parse(val) : val)
-         // Sort oldest first for a clean list
-         rsvps.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      }
-
-      const coming = rsvps.filter(r => r.attendance === 'yes')
-      const decline = rsvps.filter(r => r.attendance === 'no')
-
-      let text = `📜 **AJEM & NUUL GUEST LIST** 📜\n\n`
-      text += `✅ **Coming (${coming.length}):**\n` + (coming.length > 0 ? coming.map(c => `- ${c.name}`).join('\n') : '*None yet*') + `\n\n`
-      if (decline.length > 0) {
-        text += `❌ **Not Coming (${decline.length}):**\n` + decline.map(c => `- ${c.name}`).join('\n')
-      }
-
-      // Discord message limit is 2000 chars
-      if (text.length > 1950) {
-        text = text.substring(0, 1900) + '\n... *(List truncated due to Discord length limits)*'
-      }
-
-      return c.json({
-        type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
-        data: {
-          content: text,
-          flags: 64 // EPHEMERAL (Only you can see this message)
+  // 2. Handle Slash Commands
+  if (body.type === 2) {
+    const commandName = body.data.name
+    
+    if (commandName.startsWith('rsvp')) {
+      try {
+        const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+        const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+        const redis = new Redis({ url: redisUrl as string, token: redisToken as string })
+        
+        const rsvpsHash = await redis.hgetall('ajemnuul:rsvps')
+        let rsvps: any[] = []
+        if (rsvpsHash) {
+           rsvps = Object.values(rsvpsHash).map((val: any) => typeof val === 'string' ? JSON.parse(val) : val)
+           // Sort oldest first for a clean list
+           rsvps.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         }
-      })
-    } catch (err) {
-      console.error(err)
-      return c.json({
-        type: 4,
-        data: {
-          content: '❌ Failed to fetch RSVPs from the database.',
-          flags: 64
+
+        const coming = rsvps.filter(r => r.attendance === 'yes')
+        const decline = rsvps.filter(r => r.attendance === 'no')
+
+        let text = ''
+
+        if (commandName === 'rsvps') {
+          text = `📜 **AJEM & NUUL GUEST LIST** 📜\n\n`
+          text += `✅ **Coming (${coming.length}):**\n` + (coming.length > 0 ? coming.map(c => `- ${c.name}`).join('\n') : '*None yet*') + `\n\n`
+          if (decline.length > 0) {
+            text += `❌ **Not Coming (${decline.length}):**\n` + decline.map(c => `- ${c.name}`).join('\n')
+          }
+        } else if (commandName === 'rsvp-declined') {
+          text = `❌ **People Who Hate Happiness (${decline.length}):**\n\n` + (decline.length > 0 ? decline.map(c => `- ${c.name}`).join('\n') : '*Everyone is coming!*')
+        } else if (commandName === 'rsvp-all') {
+          text = `📋 **Everyone Who RSVP'd (${rsvps.length}):**\n\n` + (rsvps.length > 0 ? rsvps.map(c => `- ${c.name} (${c.attendance.toUpperCase()})`).join('\n') : '*No RSVPs yet.*')
+        } else if (commandName === 'rsvp-gay') {
+          text = `🏳️‍🌈 **List of Gay:**\n\n- You\n- Anyone who RSVP'd "No" tbh.\n- Definitely not Nuul (probably).`
+        } else if (commandName === 'rsvp-stats') {
+          text = `📊 **Wedding Stats:**\n\n✅ Coming: **${coming.length}**\n❌ Declined: **${decline.length}**\n💌 Total Responses: **${rsvps.length}**\n\n*Statistically speaking, 10% of the people who said 'Yes' will flake on the day of the wedding. Prepare to eat the extra catering yourself.*`
         }
-      })
+
+        // Discord message limit is 2000 chars
+        if (text.length > 1950) {
+          text = text.substring(0, 1900) + '\n... *(List truncated due to Discord length limits)*'
+        }
+
+        return c.json({
+          type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+          data: {
+            content: text,
+            flags: 64 // EPHEMERAL (Only you can see this message)
+          }
+        })
+      } catch (err) {
+        console.error(err)
+        return c.json({
+          type: 4,
+          data: {
+            content: '❌ Failed to fetch RSVPs from the database.',
+            flags: 64
+          }
+        })
+      }
     }
   }
 
   return c.json({ error: 'Unknown command' }, 400)
+})
+
+// Auto-register Discord Commands
+app.get('/discord/register', async (c) => {
+  const secret = c.req.query('secret')
+  const adminSecret = process.env.ADMIN_SECRET
+  
+  if (!adminSecret || secret !== adminSecret) {
+    return c.json({ error: 'Unauthorized. Invalid secret.' }, 401)
+  }
+
+  const appId = process.env.DISCORD_APP_ID
+  const token = process.env.DISCORD_BOT_TOKEN
+  if (!appId || !token) {
+    return c.json({ error: 'Missing DISCORD_APP_ID or DISCORD_BOT_TOKEN in Vercel Environment Variables.' }, 500)
+  }
+
+  const commands = [
+    { name: "rsvps", description: "Fetch the secret guest list of RSVPs.", type: 1 },
+    { name: "rsvp-declined", description: "List of people NOT going to the wedding.", type: 1 },
+    { name: "rsvp-all", description: "List of everyone who submitted an RSVP.", type: 1 },
+    { name: "rsvp-gay", description: "List of gay.", type: 1 },
+    { name: "rsvp-stats", description: "Fun wedding statistics and roasts.", type: 1 }
+  ]
+
+  try {
+    const res = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {
+      method: 'PUT', // Overwrites global commands
+      headers: {
+        'Authorization': `Bot ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(commands)
+    })
+    
+    if (!res.ok) {
+       const text = await res.text()
+       return c.json({ error: 'Discord API error', details: text }, 500)
+    }
+
+    return c.json({ success: true, message: 'All commands successfully registered with Discord!' })
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500)
+  }
 })
 
 export default app
