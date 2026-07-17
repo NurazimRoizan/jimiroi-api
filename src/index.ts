@@ -561,8 +561,7 @@ app.post('/discord/interactions', async (c) => {
         return c.json({
           type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
           data: {
-            content: text,
-            flags: 64 // EPHEMERAL (Only you can see this message)
+            content: text
           }
         })
       } catch (err) {
@@ -570,8 +569,7 @@ app.post('/discord/interactions', async (c) => {
         return c.json({
           type: 4,
           data: {
-            content: '❌ Failed to fetch RSVPs from the database.',
-            flags: 64
+            content: '❌ Failed to fetch RSVPs from the database.'
           }
         })
       }
