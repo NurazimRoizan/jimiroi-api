@@ -412,6 +412,29 @@ app.get('/rsvp', async (c) => {
 })
 
 app.get('/rsvp/delete/:id', async (c) => {
+  const id = c.req.param('id')
+  const secret = c.req.query('secret')
+  
+  const adminSecret = process.env.ADMIN_SECRET
+  if (!adminSecret || secret !== adminSecret) {
+    return c.json({ error: 'Unauthorized. Invalid secret.' }, 401)
+  }
+
+  // Return a confirmation page to prevent Discord link preview crawlers from auto-deleting!
+  return c.html(`
+    <div style="font-family: sans-serif; padding: 2rem; text-align: center; max-width: 500px; margin: 0 auto;">
+      <h1 style="color: #d4af37;">Confirm Deletion 🗑️</h1>
+      <p>Are you sure you want to permanently delete this message from the guestbook?</p>
+      <form method="POST" action="/rsvp/delete/${id}?secret=${secret}">
+        <button type="submit" style="background-color: #ff4757; color: white; border: none; padding: 1rem 2rem; font-size: 1.1rem; border-radius: 8px; cursor: pointer; margin-top: 1rem; font-weight: bold;">
+          Yes, Delete Message
+        </button>
+      </form>
+    </div>
+  `)
+})
+
+app.post('/rsvp/delete/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const secret = c.req.query('secret')
@@ -428,10 +451,10 @@ app.get('/rsvp/delete/:id', async (c) => {
     await redis.hdel('ajemnuul:rsvps', id)
     
     return c.html(`
-      <div style="font-family: sans-serif; padding: 2rem; text-align: center;">
-        <h1 style="color: #d4af37;">Success! 🗑️</h1>
+      <div style="font-family: sans-serif; padding: 2rem; text-align: center; max-width: 500px; margin: 0 auto;">
+        <h1 style="color: #2ed573;">Success! 🗑️</h1>
         <p>The message has been permanently deleted from the guestbook.</p>
-        <p style="font-size: 0.8rem; opacity: 0.7;">You can close this tab now.</p>
+        <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 2rem;">You can safely close this tab now.</p>
       </div>
     `)
   } catch (error: any) {
