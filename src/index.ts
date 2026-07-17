@@ -478,7 +478,7 @@ app.get('/test-redis', async (c) => {
   }
 })
 
-import { verifyKey } from 'discord-interactions'
+import nacl from 'tweetnacl'
 
 app.post('/discord/interactions', async (c) => {
   const signature = c.req.header('x-signature-ed25519')
@@ -492,7 +492,13 @@ app.post('/discord/interactions', async (c) => {
 
   let isValidRequest = false
   try {
-    isValidRequest = verifyKey(rawBody, signature, timestamp, publicKey)
+    const fromHex = (hex: string) => new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
+    const isVerified = nacl.sign.detached.verify(
+      new TextEncoder().encode(timestamp + rawBody),
+      fromHex(signature),
+      fromHex(publicKey)
+    )
+    isValidRequest = isVerified
   } catch (e) {
     return c.json({ error: 'Signature verification crashed. Check Public Key format.' }, 401)
   }

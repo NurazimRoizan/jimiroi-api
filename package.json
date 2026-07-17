@@ -4,7 +4,8 @@
   "dependencies": {
     "@upstash/redis": "^1.38.0",
     "discord-interactions": "^4.4.0",
-    "hono": "^4.12.27"
+    "hono": "^4.12.27",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",
