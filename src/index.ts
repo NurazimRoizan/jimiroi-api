@@ -239,6 +239,8 @@ app.post('/track', async (c) => {
         await sendDiscordNotification(`[LOCAL] 🥳 **NEW PiYak USER** 🥳\nA brand new user just registered in PiYak!`)
       } else if (event === 'wallo_beta_signup') {
         await sendDiscordNotification(`[LOCAL] 🧱 **NEW WALLO BETA TESTER** 🧱\n\n${message}`)
+      } else if (event === 'wallo_feedback') {
+        await sendDiscordNotification(`[LOCAL] 🐞 **WALLO FEEDBACK** 🐞\n\n${message}`)
       }
       return c.json({ success: true, mock: true })
     }
@@ -272,6 +274,8 @@ app.post('/track', async (c) => {
       await sendDiscordNotification(`🥳 **NEW PiYak USER** 🥳\nA brand new user just registered in PiYak!`)
     } else if (event === 'wallo_beta_signup') {
       await sendDiscordNotification(`🧱 **NEW WALLO BETA TESTER** 🧱\n\n${message}`)
+    } else if (event === 'wallo_feedback') {
+      await sendDiscordNotification(`🐞 **NEW WALLO FEEDBACK** 🐞\n\n${message}`)
     }
 
     return c.json({ success: true })
