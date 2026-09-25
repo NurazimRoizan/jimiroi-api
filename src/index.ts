@@ -245,6 +245,10 @@ app.post('/track', async (c) => {
         await sendDiscordNotification(`[LOCAL] 🧱 **WALLO VIBE CHECK** 🧱\nSomeone from ${city}, ${country} is viewing the Recruitment page!\nDevice: \`${userAgent}\``)
       } else if (event === 'wallo_unsubscribe') {
         await sendDiscordNotification(`[LOCAL] 🔕 **WALLO UNSUBSCRIBE** 🔕\n\n${message}`)
+      } else if (event === 'wallo_ios_waitlist') {
+        await sendDiscordNotification(`[LOCAL] 🍏 **NEW WALLO iOS WAITLIST SIGNUP** 🍏\n\n${message}`)
+      } else if (message) {
+        await sendDiscordNotification(`[LOCAL] 📣 **NEW [${project.toUpperCase()}] EVENT: ${event}** 📣\n\n${message}`)
       }
       return c.json({ success: true, mock: true })
     }
@@ -284,6 +288,10 @@ app.post('/track', async (c) => {
       await sendDiscordNotification(`🧱 **WALLO VIBE CHECK** 🧱\nSomeone from ${city}, ${country} is viewing the Recruitment page!\nDevice: \`${userAgent}\``)
     } else if (event === 'wallo_unsubscribe') {
       await sendDiscordNotification(`🔕 **WALLO UNSUBSCRIBE REQUEST** 🔕\n\n${message}`)
+    } else if (event === 'wallo_ios_waitlist') {
+      await sendDiscordNotification(`🍏 **NEW WALLO iOS WAITLIST SIGNUP** 🍏\n\n${message}`)
+    } else if (message) {
+      await sendDiscordNotification(`📣 **NEW [${project.toUpperCase()}] EVENT: ${event}** 📣\n\n${message}`)
     }
 
     return c.json({ success: true })
